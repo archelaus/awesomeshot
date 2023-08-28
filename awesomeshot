@@ -1,0 +1,114 @@
+#!/bin/bash
+
+set -euo pipefail
+
+set -x
+LANG=C
+LC_ALL=C
+LIBRARY_PATH=""
+
+config=~/.config/awesomeshot/awesomeshot.conf
+version=1.3
+export config
+
+for lib in "$LIBRARY_PATH"/*.sh; do
+	source "$lib"
+done
+
+run() {
+	[[ $convert_to_png = "yes" ]] && convertToPng
+
+	[[ $backup = "yes" ]] && backupOriginalPhoto
+
+	[[ $convert_titlebar = "yes" ]] && {
+		convertTitleBar
+		[[ $convert_titlebar_text = "yes" ]] && convertTitleBarText
+	}
+
+	[[ $convert_rounded = "yes" ]] && convertRounded
+
+	[[ $convert_small_border = "yes" ]] && convertBorder "small"
+
+	[[ $convert_shadow = "yes" ]] && convertShadow
+
+	[[ $convert_background_border = "yes" ]] && convertBorder "background"
+
+	[[ $convert_border_gradient = "yes" ]] && convertBorderGradient "$interpolate_method"
+
+	[[ $convert_footer = "yes" ]] && convertFooter
+
+	notify
+
+	[[ $open_image = "yes" ]] && nsxiv-rifle "$full_file_name" &
+
+	[[ $copy_to_clipboard = "yes" ]] && xclip -selection clipboard -t image/png \
+		-i "$full_file_name"
+
+}
+
+runProgram() {
+	getUserConfig
+	[[ -d $output_path ]] || mkdir -p "$output_path" 2>/dev/null
+
+	file_name_running="screenshot_$(date "+%Y-%m-%d_%H-%M-%S").png"
+	full_file_name="${output_path}/${file_name_running}"
+
+	flameshot gui --raw >"$full_file_name"
+
+	run
+}
+
+version() {
+	printf 'awesomeshot v%s\n' $version
+}
+
+manual() {
+	file_name="$1"
+
+	getUserConfig
+	[[ -d $output_path ]] || mkdir -p "$output_path" 2>/dev/null
+
+	if [[ -f $file_name ]]; then
+		file_name_running="${file_name##*/}"
+		cp "$file_name" "$output_path"
+		full_file_name="${output_path}/${file_name_running}"
+		run
+	else
+		printf 'ERROR: File "%s" not found. Enter the correct path\n' "$file_name"
+		exit 1
+	fi
+
+}
+
+main() {
+	case ${1-} in
+	-r | --run)
+		runProgram
+		;;
+	-c | --config)
+		generateDefaultConfig
+		;;
+	-m | --manual)
+		shift
+		if [[ ${1-} ]]; then
+			manual "$1"
+		else
+			printf 'ERROR: This option requires filename.\n'
+			exit 1
+		fi
+		;;
+	-h | --help)
+		help
+		;;
+	-v | --version)
+		version
+		;;
+	*)
+		help
+		;;
+	esac
+}
+
+main "$@"
+
+exit 0
