@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-set -x
 LANG=C
 LC_ALL=C
 LIBRARY_PATH=""
